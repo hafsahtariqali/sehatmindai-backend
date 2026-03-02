@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Large model files (will be downloaded during Railway deployment)
+crisis_model/model/model.safetensors
+emotion_model/model/model.safetensors
+
+# Large model checkpoints (keep only final models)
+crisis_model/model/checkpoint-*/
+emotion_model/model/checkpoint-*/
+
+# Large datasets (not needed for deployment)
+datasets/
+crisis_model/processed_data/
+emotion_model/processed_data/
+
+# Build artifacts
+*.rar
+*.zip
+*.log
+*.iml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+
+# Firebase credentials (security - don't commit these!)
+*firebase*service*account*.json
+*service-account*.json
+
+# Test files (optional - you can include them if you want)
+# test_*.py
+# *_test.py
+

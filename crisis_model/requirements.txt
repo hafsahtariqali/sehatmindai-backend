@@ -1,0 +1,8 @@
+# Crisis Detection Model Dependencies
+
+torch
+transformers
+pandas
+numpy
+scikit-learn
+

@@ -1,0 +1,38 @@
+# Ignore virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test files
+test_*.py
+*_test.py
+
+# Ignore datasets (too large for deployment)
+datasets/
+
+# Ignore training checkpoints (keep only final models)
+crisis_model/model/checkpoint-*/
+emotion_model/model/checkpoint-*/
+
+# Ignore build artifacts
+*.rar
+*.zip
+*.log
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.iml
+
+# Keep only essential model files
+!crisis_model/model/*.safetensors
+!crisis_model/model/*.json
+!crisis_model/model/*.txt
+!crisis_model/model/*.pt
+!emotion_model/model/*.safetensors
+!emotion_model/model/*.json
+!emotion_model/model/*.txt
+!emotion_model/model/*.pt
+

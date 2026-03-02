@@ -1,0 +1,170 @@
+{
+  "risk_factors": {
+    "life_stress": [
+      "lost my job",
+      "got fired",
+      "unemployment",
+      "no income",
+      "evicted",
+      "homeless",
+      "divorce",
+      "breakup",
+      "cheated on",
+      "relationship ended",
+      "death of",
+      "died",
+      "passed away",
+      "diagnosed with",
+      "cancer",
+      "terminal",
+      "serious illness",
+      "bankrupt",
+      "debts",
+      "financial crisis",
+      "can't pay"
+    ],
+    "isolation": [
+      "alone",
+      "lonely",
+      "no friends",
+      "nobody cares",
+      "no one understands",
+      "isolated",
+      "abandoned",
+      "rejected"
+    ],
+    "hopelessness": [
+      "no hope",
+      "hopeless",
+      "nothing left",
+      "no future",
+      "worthless",
+      "failure",
+      "useless",
+      "no point",
+      "things will never get better",
+      "always be like this"
+    ],
+    "suicide_methods": [
+      "tallest building",
+      "highest building",
+      "tall building",
+      "jump off",
+      "jump from",
+      "jump out",
+      "bridge",
+      "overpass",
+      "pills",
+      "overdose",
+      "poison",
+      "hang",
+      "hanging",
+      "gun",
+      "shoot",
+      "knife",
+      "cut wrists",
+      "bleed out"
+    ],
+    "self_harm": [
+      "hurt myself",
+      "cut myself",
+      "cutting",
+      "self harm",
+      "bleed",
+      "pain",
+      "punish myself",
+      "deserve pain"
+    ],
+    "goodbye_indicators": [
+      "goodbye",
+      "see you never",
+      "won't see me again",
+      "last time",
+      "final message",
+      "take care of",
+      "sorry for",
+      "forgive me"
+    ]
+  },
+  "patterns": [
+    {
+      "name": "stress_method_inquiry",
+      "description": "Recent life stress + method inquiry",
+      "pattern": "(lost my job|got fired|unemployment|divorce|death|diagnosed|financial crisis).*(building|bridge|jump|pills|gun|method)",
+      "severity": "critical",
+      "risk_score": 0.95
+    },
+    {
+      "name": "isolation_hopelessness",
+      "description": "Isolation + hopelessness",
+      "pattern": "(alone|lonely|no friends|nobody).*(no hope|hopeless|nothing left|no future)",
+      "severity": "high",
+      "risk_score": 0.85
+    },
+    {
+      "name": "stress_method_combination",
+      "description": "Life stress followed by method-related questions",
+      "trigger_words": [
+        "lost job",
+        "fired",
+        "divorce",
+        "death"
+      ],
+      "followed_by": [
+        "building",
+        "height",
+        "tallest",
+        "jump"
+      ],
+      "severity": "critical",
+      "risk_score": 0.9
+    }
+  ],
+  "combination_rules": [
+    {
+      "name": "job_loss_building_inquiry",
+      "description": "Job loss + asking about tall buildings",
+      "requires": {
+        "all": [
+          "job_loss",
+          "building_inquiry"
+        ]
+      },
+      "severity": "critical",
+      "risk_score": 0.95,
+      "reason": "Job loss combined with inquiry about tall buildings suggests suicidal ideation"
+    },
+    {
+      "name": "loss_event_method",
+      "description": "Recent loss + method inquiry",
+      "requires": {
+        "all": [
+          "life_stress",
+          "method_inquiry"
+        ]
+      },
+      "severity": "critical",
+      "risk_score": 0.9
+    },
+    {
+      "name": "isolation_hopeless",
+      "description": "Isolation + hopelessness statements",
+      "requires": {
+        "any": [
+          "isolation"
+        ],
+        "all": [
+          "hopelessness"
+        ]
+      },
+      "severity": "high",
+      "risk_score": 0.8
+    }
+  ],
+  "thresholds": {
+    "critical": 0.9,
+    "high": 0.75,
+    "medium": 0.75,
+    "low": 0.4
+  }
+}
