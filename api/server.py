@@ -393,6 +393,32 @@ async def chat(message: ChatMessage):
     Raises:
         HTTPException: If message is invalid or models are unavailable
     """
+    try:
+        return await _process_chat_message(message)
+    except Exception as e:
+        logger.error(f"Unhandled error in chat endpoint: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Generate a session ID for error response
+        session_id = message.sender_id or generate_session_id()
+        # Return error response to prevent Railway timeout
+        fallback_text = "I'm here to listen. What's on your mind?"
+        return ChatResponse(
+            responses=[BotResponse(text=fallback_text, sender="bot")],
+            session_id=session_id,
+            timestamp=datetime.now().isoformat(),
+            session_locked=False,
+            support_mode=False,
+            response=fallback_text,
+            crisis=False,
+            emotion=None
+        )
+
+
+async def _process_chat_message(message: ChatMessage) -> ChatResponse:
+    """
+    Internal function to process chat messages.
+    """
     # Reduced logging for performance (only log key events)
     logger.info(f"Chat request: sender_id={message.sender_id}, msg_len={len(message.message)}, message_preview={message.message[:50]}")
     
@@ -718,6 +744,7 @@ async def chat(message: ChatMessage):
                 user_message_for_llm = original_urdu_message if user_wrote_urdu else text_for_pipeline
                 
                 try:
+                    logger.info(f"Calling LLM API for session {session_id}...")
                     response_text = await asyncio.wait_for(
                         llm_generator.generate_response_async(
                             user_message=user_message_for_llm,  # Original message in user's language
@@ -728,8 +755,9 @@ async def chat(message: ChatMessage):
                             original_urdu_message=original_urdu_message,  # Pass original Urdu for context
                             crisis_level=crisis_level  # Pass crisis level for context
                         ),
-                        timeout=20.0  # 20 second timeout for the entire LLM call
+                        timeout=15.0  # Reduced to 15 seconds to avoid Railway gateway timeout (30s)
                     )
+                    logger.info(f"LLM API call completed successfully for session {session_id}")
                     fallback_english = "I'm here to listen. What's on your mind?"
                     fallback_urdu = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟"
                     fallback = fallback_urdu if user_wrote_urdu else fallback_english
@@ -738,17 +766,18 @@ async def chat(message: ChatMessage):
                     else:
                         logger.warning("LLM returned fallback response - API call may have failed")
                 except asyncio.TimeoutError:
-                    logger.error("LLM response generation timed out after 20 seconds")
+                    logger.error(f"LLM response generation timed out after 15 seconds for session {session_id}")
                     logger.error("=" * 60)
                     # Use Urdu script fallback if user wrote Urdu
                     response_text = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟" if user_wrote_urdu else "I'm here to listen. What's on your mind?"
             except Exception as e:
                 logger.error("=" * 60)
-                logger.error(f"ERROR generating LLM response: {e}")
+                logger.error(f"ERROR generating LLM response for session {session_id}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
                 logger.error("=" * 60)
                 # Use fallback response if LLM fails
+                response_text = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟" if user_wrote_urdu else "I'm here to listen. What's on your mind?"
     else:
         logger.warning("=" * 60)
         logger.warning("WARNING: LLM generator not initialized, using fallback response")
