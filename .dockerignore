@@ -1,0 +1,39 @@
+# Ignore virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test files
+test_*.py
+*_test.py
+
+# Ignore datasets (too large for deployment)
+datasets/
+preprocessing/cleaned/
+
+# Ignore training checkpoints and model files (using Hugging Face now)
+crisis_model/model/
+emotion_model/model/
+crisis_model/processed_data/
+emotion_model/processed_data/
+crisis_model.rar
+
+# Ignore build artifacts
+*.rar
+*.zip
+*.log
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.iml
+
+# Ignore test and training files
+train*.py
+evaluate.py
+preprocess.py
+verify*.py
+check_*.py
+
