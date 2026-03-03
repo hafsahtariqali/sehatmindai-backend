@@ -13,5 +13,5 @@ cmds = [
 cmds = []
 
 [start]
-cmd = "uvicorn api.server:app --host 0.0.0.0 --port $PORT"
+cmd = "source /opt/venv/bin/activate && uvicorn api.server:app --host 0.0.0.0 --port $PORT"
 
