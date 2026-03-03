@@ -200,7 +200,26 @@ class EmotionPredictor:
         print("[OK] Model loaded successfully")
     
     def _load_tokenizer(self):
-        """Load the tokenizer."""
+        """Load the tokenizer from Hugging Face or local fallback."""
+        import os
+        
+        # Try Hugging Face first (for Railway deployment)
+        hf_model_id = os.getenv("EMOTION_MODEL_HF_ID", "")
+        hf_token = os.getenv("HF_TOKEN", None)
+        
+        if hf_model_id:
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    hf_model_id,
+                    token=hf_token if hf_token else None
+                )
+                print(f"[OK] Emotion tokenizer loaded from Hugging Face")
+                return
+            except Exception as e:
+                print(f"[WARN] Failed to load tokenizer from Hugging Face: {e}")
+                print(f"[FALLBACK] Trying local tokenizer...")
+        
+        # Fallback to local tokenizer
         print(f"Loading tokenizer from {self.model_dir}...")
         self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_dir))
         print("[OK] Tokenizer loaded successfully")
