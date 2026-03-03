@@ -12,9 +12,9 @@ test_*.py
 # Ignore datasets (too large for deployment)
 datasets/
 
-# Ignore training checkpoints (keep only final models)
-crisis_model/model/checkpoint-*/
-emotion_model/model/checkpoint-*/
+# Ignore training checkpoints and model files (using Hugging Face now)
+crisis_model/model/
+emotion_model/model/
 
 # Ignore build artifacts
 *.rar
@@ -25,14 +25,4 @@ emotion_model/model/checkpoint-*/
 .vscode/
 .idea/
 *.iml
-
-# Keep only essential model files
-!crisis_model/model/*.safetensors
-!crisis_model/model/*.json
-!crisis_model/model/*.txt
-!crisis_model/model/*.pt
-!emotion_model/model/*.safetensors
-!emotion_model/model/*.json
-!emotion_model/model/*.txt
-!emotion_model/model/*.pt
 
