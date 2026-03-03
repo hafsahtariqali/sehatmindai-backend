@@ -60,11 +60,31 @@ class CrisisPredictor:
         self._load_guardrails()
     
     def _load_model(self):
-        """Load the trained model."""
+        """Load the trained model from Hugging Face or local fallback."""
+        import os
+        
+        # Try Hugging Face first (for Railway deployment)
+        hf_model_id = os.getenv("CRISIS_MODEL_HF_ID", "")
+        hf_token = os.getenv("HF_TOKEN", None)
+        
+        if hf_model_id:
+            try:
+                print(f"[HF] Loading crisis model from Hugging Face: {hf_model_id}")
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    hf_model_id,
+                    token=hf_token if hf_token else None
+                )
+                print(f"[OK] Crisis model loaded from Hugging Face")
+                return
+            except Exception as e:
+                print(f"[WARN] Failed to load from Hugging Face: {e}")
+                print(f"[FALLBACK] Trying local model directory...")
+        
+        # Fallback to local model directory (for local development)
         if not self.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory not found: {self.model_dir}\n"
-                f"Please ensure the trained model is in this location."
+                f"Please ensure the trained model is in this location or set CRISIS_MODEL_HF_ID."
             )
         
         # Find best checkpoint (same logic as evaluate.py)
@@ -105,7 +125,7 @@ class CrisisPredictor:
             model_path = self.model_dir
             print(f"[OK] Using root model directory")
         
-        # Load model
+        # Load model from local path
         self.model = AutoModelForSequenceClassification.from_pretrained(str(model_path))
         self.model.eval()
         
