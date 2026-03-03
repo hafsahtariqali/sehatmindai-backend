@@ -15,6 +15,13 @@ datasets/
 # Ignore training checkpoints and model files (using Hugging Face now)
 crisis_model/model/
 emotion_model/model/
+crisis_model/processed_data/
+emotion_model/processed_data/
+crisis_model.rar
+
+# Ignore datasets (too large for deployment)
+datasets/
+preprocessing/cleaned/
 
 # Ignore build artifacts
 *.rar
@@ -25,4 +32,13 @@ emotion_model/model/
 .vscode/
 .idea/
 *.iml
+
+# Ignore test and training files
+test_*.py
+*_test.py
+train*.py
+evaluate.py
+preprocess.py
+verify*.py
+check_*.py
 
