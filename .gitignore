@@ -9,13 +9,9 @@ env/
 ENV/
 .venv
 
-# Large model files (will be downloaded during Railway deployment)
-crisis_model/model/model.safetensors
-emotion_model/model/model.safetensors
-
-# Large model checkpoints (keep only final models)
-crisis_model/model/checkpoint-*/
-emotion_model/model/checkpoint-*/
+# Large model files (using Hugging Face now - not needed in repo)
+crisis_model/model/
+emotion_model/model/
 
 # Large datasets (not needed for deployment)
 datasets/
