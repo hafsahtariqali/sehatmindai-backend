@@ -394,7 +394,7 @@ async def chat(message: ChatMessage):
         HTTPException: If message is invalid or models are unavailable
     """
     # Reduced logging for performance (only log key events)
-    logger.debug(f"Chat request: session={message.sender_id}, msg_len={len(message.message)}")
+    logger.info(f"Chat request: sender_id={message.sender_id}, msg_len={len(message.message)}, message_preview={message.message[:50]}")
     
     # Validate message
     if not message.message or not message.message.strip():
@@ -406,6 +406,7 @@ async def chat(message: ChatMessage):
     
     # Get or generate session ID
     session_id = message.sender_id or generate_session_id()
+    logger.info(f"Using session_id: {session_id} (was sender_id provided: {message.sender_id is not None})")
     
     # Clean up expired locks and cache periodically (runs on every request)
     cleanup_expired_locks()
@@ -471,7 +472,10 @@ async def chat(message: ChatMessage):
     )
     intro_not_sent = session_id not in sessions_with_intro
     
+    logger.info(f"Session check - session_id: {session_id}, is_new_session: {is_new_session}, intro_not_sent: {intro_not_sent}, history_length: {len(conversation_history.get(session_id, []))}")
+    
     if is_new_session and intro_not_sent:
+        logger.info(f"Returning intro message for new session: {session_id}")
         # Get user name: use provided name, or check cache, or fetch from Firestore
         user_name = message.user_name
         if not user_name and session_id and not session_id.startswith('user_'):
@@ -697,7 +701,7 @@ async def chat(message: ChatMessage):
     # Fallback response (will be in Urdu script if user wrote Urdu, English otherwise)
     response_text = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟" if user_wrote_urdu else "I'm here to listen. What's on your mind?"
 
-    logger.debug("Starting LLM response generation")
+    logger.info("Starting LLM response generation")
     
     if llm_generator is not None:
         api_key_check = llm_generator.api_key or os.getenv("GROQ_API_KEY")
@@ -706,6 +710,7 @@ async def chat(message: ChatMessage):
         if not api_key_check:
             logger.error("GROQ_API_KEY not available - cannot call Groq API")
         else:
+            logger.info(f"Calling LLM with history length: {len(history)}")
             try:
                 # SINGLE-CALL BILINGUAL GENERATION:
                 # Pass original user message (Urdu if user wrote Urdu, English if English)
@@ -729,7 +734,7 @@ async def chat(message: ChatMessage):
                     fallback_urdu = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟"
                     fallback = fallback_urdu if user_wrote_urdu else fallback_english
                     if response_text and response_text != fallback:
-                        logger.debug(f"LLM response generated: {len(response_text)} chars")
+                        logger.info(f"LLM response generated: {len(response_text)} chars, preview: {response_text[:100]}")
                     else:
                         logger.warning("LLM returned fallback response - API call may have failed")
                 except asyncio.TimeoutError:
