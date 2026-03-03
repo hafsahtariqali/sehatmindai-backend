@@ -1,8 +1,7 @@
 # Core dependencies for emotion detection model
 transformers>=4.30.0
-# Use CPU-only PyTorch to reduce image size (saves ~2-3GB vs CUDA version)
-# Note: Install with: pip install torch --index-url https://download.pytorch.org/whl/cpu
-torch>=2.0.0
+# Note: torch is installed separately in build step as CPU-only version to reduce image size
+# DO NOT add torch here - it will be installed via railway.json buildCommand
 
 # Data processing
 pandas>=2.0.0
