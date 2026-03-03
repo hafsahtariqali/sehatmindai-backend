@@ -1,6 +1,7 @@
 # Core dependencies for emotion detection model
 transformers>=4.30.0
-torch>=2.0.0
+# Use CPU-only PyTorch to reduce image size (models run on CPU or can use GPU if available)
+torch>=2.0.0,<2.1.0 --index-url https://download.pytorch.org/whl/cpu
 
 # Data processing
 pandas>=2.0.0
