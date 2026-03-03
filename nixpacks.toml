@@ -4,8 +4,9 @@ nixPkgs = ["python3", "gcc"]
 [phases.install]
 cmds = [
   "python -m venv --copies /opt/venv",
-  ". /opt/venv/bin/activate && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu",
-  ". /opt/venv/bin/activate && pip install --no-cache-dir -r requirements.txt"
+  "source /opt/venv/bin/activate && pip install --no-cache-dir --upgrade pip",
+  "source /opt/venv/bin/activate && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu",
+  "source /opt/venv/bin/activate && pip install --no-cache-dir -r requirements.txt"
 ]
 
 [phases.build]
