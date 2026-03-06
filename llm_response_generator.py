@@ -132,6 +132,10 @@ class LLMResponseGenerator:
             else:
                 system_prompt = self._build_default_system_prompt()
             
+            # Note: The conversation history is pre-seeded with the frontend greeting
+            # so the LLM sees "assistant: Hi [name], how is your mood today?" already exists.
+            # This naturally prevents the LLM from generating another greeting.
+            
             # Add Urdu-specific instructions if responding in Urdu
             if respond_in_urdu:
                 urdu_instructions = """
@@ -330,14 +334,16 @@ OUTPUT REQUIREMENTS:
         # Build messages array
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add conversation history if available (in same language as current message)
+        # Add conversation history if available
+        # History is pre-seeded with the frontend greeting ("Hi [name], how is your mood today?")
+        # so the LLM naturally sees the greeting already happened and won't repeat it
         if conversation_history:
-            # Add history messages (they should already be in the correct format and language)
             messages.extend(conversation_history)
-            logger.debug(f"Including {len(conversation_history)} previous messages in context")
+            logger.debug(f"Including {len(conversation_history)} history messages in context")
         
         # Add current user message
         messages.append({"role": "user", "content": user_content})
+        logger.debug(f"Sending {len(messages)} messages to LLM, user message: {user_content[:100]}")
         
         # Adjust parameters based on language
         if respond_in_urdu:

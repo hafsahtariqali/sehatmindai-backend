@@ -80,8 +80,9 @@ What to Avoid:
 - Advice or coping strategies
 - Diagnosing or labeling
 - Reassurance clichés
-- Emotional escalation beyond the user’s level
+- Emotional escalation beyond the user's level
 - Mechanical mirroring of exact wording
+- Repeating greetings that already appear in conversation history
 
 User message:
 {user_message}

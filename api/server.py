@@ -34,8 +34,7 @@ from guardrails.crisis_logging import log_crisis_detection
 # Import crisis message
 from guardrails.crisis_message import get_crisis_message, get_crisis_message_urdu
 
-# Import intro message
-from guardrails.intro_message import get_intro_message_english, get_intro_message_urdu
+# REMOVED: Intro message imports - chatbot no longer sends greetings
 
 # Import user data service for fetching full names from Firestore
 from services.user_data_service import get_user_full_name, get_user_preferred_language
@@ -139,9 +138,7 @@ def cleanup_expired_locks():
 conversation_history: Dict[str, List[Dict[str, str]]] = {}
 MAX_HISTORY_LENGTH = 10  # Keep last 10 messages (5 user + 5 assistant pairs)
 
-# Track sessions that have received intro messages
-# Key: session_id, Value: True if intro message was sent
-sessions_with_intro: Dict[str, bool] = {}
+# REMOVED: sessions_with_intro tracking - chatbot no longer sends greetings
 
 # Global crisis detection controller (initialized at startup)
 crisis_controller: Optional[DecisionController] = None
@@ -487,85 +484,23 @@ async def _process_chat_message(message: ChatMessage) -> ChatResponse:
     logger.debug(f"Language detected: {'Urdu' if user_wrote_urdu else 'English'}")
     
     # ========================================================================
-    # INTRO MESSAGE: Check if this is a new session and send intro message
+    # REMOVED: Intro message system - frontend handles greetings
     # ========================================================================
-    # If this is a new session (no conversation history and no intro sent),
-    # send an intro message based on user's preferred language.
+    # The frontend shows the automated greeting "Hi [name], how is your mood today?"
+    # when a new session starts. The chatbot should NEVER send greetings.
+    # Chatbot only responds to user messages - NO GREETINGS.
     # ========================================================================
-    is_new_session = (
-        session_id not in conversation_history or 
-        len(conversation_history.get(session_id, [])) == 0
-    )
-    intro_not_sent = session_id not in sessions_with_intro
     
-    logger.info(f"Session check - session_id: {session_id}, is_new_session: {is_new_session}, intro_not_sent: {intro_not_sent}, history_length: {len(conversation_history.get(session_id, []))}")
-    
-    if is_new_session and intro_not_sent:
-        logger.info(f"Returning intro message for new session: {session_id}")
-        # Get user name: use provided name, or check cache, or fetch from Firestore
-        user_name = message.user_name
-        if not user_name and session_id and not session_id.startswith('user_'):
-            # Check cache first (faster)
-            cached_data = get_cached_user_data(session_id)
-            if cached_data and cached_data.get('name'):
-                user_name = cached_data['name']
-                logger.debug(f"Using cached name for user {session_id}")
-            else:
-                # Fetch from Firestore and cache it
-                user_name = get_user_full_name(session_id)
-                if user_name:
-                    cache_user_data(session_id, name=user_name)
-        
-        # Determine language: use provided, cache, or fetch from Firestore
-        use_urdu = False
-        preferred_lang = message.preferred_language
-        if not preferred_lang and session_id and not session_id.startswith('user_'):
-            # Check cache first
-            cached_data = get_cached_user_data(session_id)
-            if cached_data and cached_data.get('language'):
-                preferred_lang = cached_data['language']
-                logger.debug(f"Using cached language for user {session_id}")
-            else:
-                # Fetch from Firestore and cache it
-                preferred_lang = get_user_preferred_language(session_id)
-                if preferred_lang:
-                    cache_user_data(session_id, language=preferred_lang)
-        
-        if preferred_lang:
-            use_urdu = preferred_lang.lower() in ["urdu", "اردو"]
-        elif user_wrote_urdu:
-            use_urdu = True
-        
-        # Get intro message in appropriate language
-        if use_urdu:
-            intro_text = get_intro_message_urdu(user_name)
-        else:
-            intro_text = get_intro_message_english(user_name)
-        
-        # Mark intro as sent for this session
-        sessions_with_intro[session_id] = True
-        
-        # Initialize conversation history with intro message
-        if session_id not in conversation_history:
-            conversation_history[session_id] = []
-        conversation_history[session_id].append({
-            "role": "assistant",
-            "content": intro_text
-        })
-        
-        logger.debug(f"New session: {session_id} - intro in {'Urdu' if use_urdu else 'English'}")
-        
-        # Return intro message immediately
-        return ChatResponse(
-            responses=[BotResponse(text=intro_text, sender="bot")],
-            session_id=session_id,
-            timestamp=datetime.now().isoformat(),
-            session_locked=False,
-            support_mode=False,
-            response=intro_text,
-            crisis=False,
-            emotion=None
-        )
+    # Initialize conversation history if it doesn't exist
+    # PRE-SEED with the greeting that the frontend already shows.
+    # This tells the LLM "the greeting already happened" so it won't generate one.
+    if session_id not in conversation_history:
+        # Get user's name for the greeting (matches what frontend shows)
+        user_name = message.user_name or "there"
+        conversation_history[session_id] = [
+            {"role": "assistant", "content": f"Hi {user_name}, how is your mood today?"}
+        ]
+        logger.info(f"New session {session_id} - pre-seeded history with frontend greeting")
     
     # ========================================================================
     # SAFETY GUARDRAIL: Check if conversation is already locked
@@ -783,11 +718,56 @@ async def _process_chat_message(message: ChatMessage) -> ChatResponse:
         logger.warning("WARNING: LLM generator not initialized, using fallback response")
         logger.warning("=" * 60)
     
-    # Step 4: Use LLM response directly (already in Urdu if user wrote Urdu, English otherwise)
+    # Step 4: Safety net - detect if LLM returned a greeting instead of a real response
+    # This catches cases where the LLM ignores pre-seeded history
+    response_lower = response_text.lower().strip()
+    is_greeting_response = (
+        "how's your mood" in response_lower or
+        "how is your mood" in response_lower or
+        (response_lower.startswith("hi") and len(response_text.strip()) < 50) or
+        (response_lower.startswith("hello") and len(response_text.strip()) < 50) or
+        (response_lower.startswith("hey") and len(response_text.strip()) < 50)
+    )
+    
+    if is_greeting_response and llm_generator is not None:
+        logger.warning(f"LLM generated greeting despite pre-seeded history: '{response_text}' - retrying with explicit context")
+        # Retry: prepend the user's message with context that greeting already happened
+        retry_message = f"[IMPORTANT: You already greeted the user. Do NOT greet again. Respond to their message directly.]\n\nUser's message: {user_message_for_llm}"
+        try:
+            retry_response = await asyncio.wait_for(
+                llm_generator.generate_response_async(
+                    user_message=retry_message,
+                    detected_emotion=detected_emotion,
+                    emotion_confidence=emotion_confidence,
+                    conversation_history=history,
+                    respond_in_urdu=user_wrote_urdu,
+                    original_urdu_message=original_urdu_message,
+                    crisis_level=crisis_level
+                ),
+                timeout=10.0
+            )
+            retry_lower = (retry_response or "").lower().strip()
+            retry_is_greeting = (
+                "how's your mood" in retry_lower or
+                "how is your mood" in retry_lower or
+                (retry_lower.startswith("hi") and len(retry_lower) < 50) or
+                (retry_lower.startswith("hello") and len(retry_lower) < 50)
+            )
+            if retry_response and not retry_is_greeting:
+                response_text = retry_response
+                logger.info(f"Retry succeeded with proper response: {response_text[:100]}")
+            else:
+                logger.warning(f"Retry also returned greeting: '{retry_response}' - using fallback")
+                response_text = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟" if user_wrote_urdu else "I'm here to listen. What's on your mind?"
+        except Exception as e:
+            logger.error(f"Retry failed: {e}")
+            response_text = "میں یہاں ہوں، سننے کے لیے۔ آپ کیا کہنا چاہتے ہیں؟" if user_wrote_urdu else "I'm here to listen. What's on your mind?"
+    
+    # Step 5: Use LLM response directly (already in Urdu if user wrote Urdu, English otherwise)
     # No translation needed - LLM generates directly in the target language
     response_for_user = response_text
     
-    # Step 5: Update conversation history
+    # Step 6: Update conversation history
     # SINGLE-CALL BILINGUAL GENERATION: Store messages in their original language
     # This ensures conversation history is in the same language for context continuity
     # IMPORTANT: For Urdu conversations, bot responses are always in proper Urdu script (not Roman Urdu)
