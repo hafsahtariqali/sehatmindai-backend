@@ -42,6 +42,11 @@ from services.user_data_service import get_user_full_name, get_user_preferred_la
 # Import email and OTP services
 from services.email_service import EmailService
 from services.otp_service import OTPService
+from services.firebase_auth_service import (
+    user_exists_by_email,
+    update_password_by_email,
+    validate_password_strength,
+)
 
 # Import rate limiter
 from guardrails.rate_limiter import check_rate_limit
@@ -282,7 +287,7 @@ class VerifyOTPResponse(BaseModel):
 class ResetPasswordRequest(BaseModel):
     """Request model for resetting password"""
     email: str = Field(..., description="User's email address")
-    new_password: str = Field(..., description="New password", min_length=6)
+    new_password: str = Field(..., description="New password", min_length=8)
 
 
 class ResetPasswordResponse(BaseModel):
@@ -1806,6 +1811,22 @@ async def send_otp(request: SendOTPRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid email format"
             )
+
+        # Only send OTP if a Firebase account exists for this email
+        try:
+            if not user_exists_by_email(email):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No account found for this email address.",
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Firebase lookup failed during send-otp: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Unable to verify account right now. Please try again later.",
+            )
         
         # Generate OTP
         otp = OTPService.create_otp(email)
@@ -1893,16 +1914,7 @@ async def verify_otp(request: VerifyOTPRequest):
 @app.post("/auth/reset-password", response_model=ResetPasswordResponse)
 async def reset_password(request: ResetPasswordRequest):
     """
-    Reset user's password after OTP verification.
-    
-    Note: This endpoint validates that OTP was verified.
-    The actual password reset should be done through Firebase Auth.
-    
-    Args:
-        request: ResetPasswordRequest with email and new password
-        
-    Returns:
-        ResetPasswordResponse indicating success or failure
+    Reset user's password after OTP verification using Firebase Admin SDK.
     """
     try:
         email = request.email.strip().lower()
@@ -1915,11 +1927,11 @@ async def reset_password(request: ResetPasswordRequest):
                 detail="Invalid email format"
             )
         
-        # Validate password
-        if len(new_password) < 6:
+        password_error = validate_password_strength(new_password)
+        if password_error:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 6 characters long"
+                detail=password_error,
             )
         
         # Check if OTP was verified
@@ -1929,13 +1941,27 @@ async def reset_password(request: ResetPasswordRequest):
                 detail="OTP not verified. Please verify your OTP first."
             )
         
-        # Consume OTP (mark as used)
+        try:
+            update_password_by_email(email, new_password)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
+        except Exception as e:
+            logger.error(f"Firebase password update failed for {email}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to update password. Please try again later.",
+            ) from e
+
+        # Consume OTP only after Firebase password was updated
         OTPService.consume_otp(email)
         
-        logger.info(f"Password reset request processed for {email}")
+        logger.info(f"Password updated successfully for {email}")
         return ResetPasswordResponse(
             success=True,
-            message="Password reset verified. Please use Firebase Auth to update your password."
+            message="Your password has been updated successfully.",
         )
         
     except HTTPException:
