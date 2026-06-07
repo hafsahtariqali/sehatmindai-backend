@@ -1983,13 +1983,15 @@ async def http_exception_handler(request, exc):
     
     This ensures consistent error response format for the Flutter app.
     """
-    return {
-        "error": {
-            "status_code": exc.status_code,
-            "detail": exc.detail,
-            "timestamp": datetime.now().isoformat()
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "message": "Something went wrong"
         }
-    }
+    )
 
 
 # Main execution
