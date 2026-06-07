@@ -109,11 +109,18 @@ This is an automated message from SehatMind. Please do not reply to this email.
             msg.attach(part2)
             
             # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            logger.info(
+                f"Connecting to SMTP server {self.smtp_server}:{self.smtp_port} "
+                f"as {self.smtp_username}"
+            )
+
+            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=20) as server:
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
                 server.login(self.smtp_username, self.smtp_password)
                 server.send_message(msg)
-            
+
             logger.info(f"OTP email sent successfully to {to_email}")
             return True
             
